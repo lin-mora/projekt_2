@@ -7,8 +7,14 @@
 
 const char* KEY_PATH = "key";
 
+enum MessageType {
+    ToServer = 10,
+    Broadcast = 20,
+};
+
 struct MessageBuffer {
     long mtype;
+    long sender_id;
     char mtext[1];
 };
 
@@ -75,17 +81,26 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Utworzono kolejkę wiadomości " << msgid << "\n";
 
-    MessageBuffer buf;
+    MessageBuffer msg;
     // the server will run in perpetuity but that's acceptable under the conditions of the assignment
     while (true) {
         sleep(1);
-        for (int i = 1; i < argc; i++) {
-            // MSG_NOERROR - To truncate the message text if longer than msgsz bytes.
-            if (msgrcv(msgid, &buf, sizeof(MessageBuffer), parse_id(argv[i]), IPC_NOWAIT) != -1) {
-                std::cout << "Broadcasting from \"" << buf.mtype << "\" from \"" << buf.mtext << "\"\n";
+        // MSG_NOERROR - To truncate the message text if longer than msgsz bytes.
+        if (msgrcv(msgid, &msg, sizeof(MessageBuffer), __LONG_MAX__, IPC_NOWAIT | MSG_NOERROR) != -1) {
+            std::cout << msg.sender_id << ": " << msg.mtext << "\n";
+            for (int i = 1; i < argc; i++) {
+                msg.mtype = parse_id(argv[i]);
+                if (msg.mtype == msg.sender_id) {
+                    continue;
+                }
+                int send_result = msgsnd(msgid, &msg, sizeof(MessageBuffer), 0);
+                if (send_result == -1) {
+                    std::cerr << "Ostrzeżenie: nie udało się wysłać wiadomości od \"" << msg.sender_id << "\" do \"" << msg.mtype << "\n";
+                }
             }
-            std::cout << "no messages\n";   
         }
+        // parse_id(argv[i])
+        std::cout << "no messages\n";
     }
     
 
