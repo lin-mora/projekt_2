@@ -6,41 +6,13 @@
 #include <unistd.h>
 
 const char* KEY_PATH = "key";
-
-enum MessageType {
-    ToServer = 10,
-    Broadcast = 20,
-};
+const size_t MAX_MESSAGE_SIZE = sizeof(long); // min is sizeof(long) cause of padding
 
 struct MessageBuffer {
     long mtype;
     long sender_id;
-    char mtext[1];
+    char mtext[MAX_MESSAGE_SIZE];
 };
-
-
-long parse_id(char* id_string) {
-    long ret = 0;
-    int i = 0;
-    while (*(id_string + i) != NULL) {
-        if (*(id_string + i) < 48 || *(id_string + i) > 57) {
-            return -1;
-        }
-        long power = 1;
-        for (int j = 0; j < i; j++) {
-            // we do it backwards but we don't care
-            // it's an id, not a number
-            power *= 10;
-        }
-        ret += power * (*(id_string + i) - 48);
-        i++;
-        // 19 digits in 64 bits therefore id can only be an 18 bit decimal number
-        if (i > 18) {
-            break;
-        }
-    }
-    return ret;
-}
 
 // serwer id_klienta1 id_klienta2 ...
 int main(int argc, char* argv[]) {
@@ -86,20 +58,19 @@ int main(int argc, char* argv[]) {
     while (true) {
         sleep(1);
         // MSG_NOERROR - To truncate the message text if longer than msgsz bytes.
-        if (msgrcv(msgid, &msg, sizeof(MessageBuffer), __LONG_MAX__, IPC_NOWAIT | MSG_NOERROR) != -1) {
+        if (msgrcv(msgid, &msg, sizeof(MessageBuffer) - sizeof(long), __LONG_MAX__, IPC_NOWAIT | MSG_NOERROR) != -1) {
             std::cout << msg.sender_id << ": " << msg.mtext << "\n";
             for (int i = 1; i < argc; i++) {
-                msg.mtype = parse_id(argv[i]);
+                msg.mtype = atoi(argv[i]);
                 if (msg.mtype == msg.sender_id) {
                     continue;
                 }
-                int send_result = msgsnd(msgid, &msg, sizeof(MessageBuffer), 0);
+                int send_result = msgsnd(msgid, &msg, sizeof(MessageBuffer) - sizeof(long), 0);
                 if (send_result == -1) {
                     std::cerr << "Ostrzeżenie: nie udało się wysłać wiadomości od \"" << msg.sender_id << "\" do \"" << msg.mtype << "\n";
                 }
             }
         }
-        // parse_id(argv[i])
         std::cout << "no messages\n";
     }
     
