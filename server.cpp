@@ -56,9 +56,8 @@ int main(int argc, char* argv[]) {
     MessageBuffer msg;
     // the server will run in perpetuity but that's acceptable under the conditions of the assignment
     while (true) {
-        sleep(1);
         // MSG_NOERROR - To truncate the message text if longer than msgsz bytes.
-        if (msgrcv(msgid, &msg, sizeof(MessageBuffer) - sizeof(long), __LONG_MAX__, IPC_NOWAIT | MSG_NOERROR) != -1) {
+        if (msgrcv(msgid, &msg, sizeof(MessageBuffer) - sizeof(long), __LONG_MAX__, MSG_NOERROR) != -1) {
             std::cout << msg.sender_id << ": " << msg.mtext << "\n";
             for (int i = 1; i < argc; i++) {
                 msg.mtype = atoi(argv[i]);
@@ -71,7 +70,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        std::cout << "no messages\n";
     }
     
 
